@@ -5,7 +5,8 @@ import os
 
 from jina.docker.hubio import HubIO
 from jina.excepts import ImageAlreadyExists
-from jina.helper import yaml
+from jina.jaml import JAML
+from jina.helper import expand_dict
 from jina.docker.helper import credentials_file
 from jina.parser import set_hub_build_parser, set_hub_list_parser, set_hub_pushpull_parser
 
@@ -43,16 +44,16 @@ def test_hub_build_uses():
     # build again it shall not fail
     HubIO(args).build()
 
-def test_hub_build_push(monkeypatch, access_token_github, mocker):
+def test_hub_build_push(monkeypatch, access_token_github):
 
-    mocker.patch(Path.is_file, return_value=True)
-    monkeypatch.setattr(yaml, 'load', access_token_github)
-    #monkeypatch.setattr(credentials_file(), 'is_file', True)
+    monkeypatch.setattr(JAML, 'load', access_token_github)
+    monkeypatch.setattr(Path, 'is_file', True)
     args = set_hub_build_parser().parse_args([str(cur_dir / 'hub-mwu'), '--push', '--host-info'])
     summary = HubIO(args).build()
 
     with open(cur_dir / 'hub-mwu' / 'manifest.yml') as fp:
-        manifest = yaml.load(fp)
+        manifest_jaml = JAML.load(fp, substitute=True)
+        manifest = expand_dict(manifest_jaml)
 
     assert summary['is_build_success']
     assert manifest['version'] == summary['version']
@@ -76,15 +77,16 @@ def test_hub_build_push(monkeypatch, access_token_github, mocker):
 
 
 @pytest.mark.skip(reason='Non reproducible error and super flaky in github. Please repair it.')
-def test_hub_build_push_push_again(monkeypatch, access_token_github, mocker):
-    mocker.patch(Path.is_file, return_value=True)
-    monkeypatch.setattr(yaml, 'load', access_token_github)
-    #monkeypatch.setattr(credentials_file(), 'is_file', True)
+def test_hub_build_push_push_again(monkeypatch, access_token_github):
+    monkeypatch.setattr(JAML, 'load', access_token_github)
+    monkeypatch.setattr(Path, 'is_file', True)
+    monkeypatch.setattr(credentials_file(), 'is_file', True)
     args = set_hub_build_parser().parse_args([str(cur_dir / 'hub-mwu'), '--push', '--host-info'])
     summary = HubIO(args).build()
 
     with open(cur_dir / 'hub-mwu' / 'manifest.yml') as fp:
-        manifest = yaml.load(fp)
+        manifest_jaml = JAML.load(fp, substitute=True)
+        manifest = expand_dict(manifest_jaml)
 
     assert summary['is_build_success']
     assert manifest['version'] == summary['version']
